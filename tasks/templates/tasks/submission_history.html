@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+{% load django_bootstrap5 %}
+{% block title %}My Submissions{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">My Submission History</h2>
+
+{% for s in submissions %}
+  <div class="card mb-3 shadow-sm">
+    <div class="row g-0 align-items-center">
+      <div class="col-md-4">
+        {% with first_image=s.task.images.first %}
+          {% if first_image %}
+            <img src="{{ first_image.image.url }}" class="img-fluid rounded-start" alt="Original {{ s.task.title }}">
+          {% endif %}
+        {% endwith %}
+      </div>
+      <div class="col-md-8">
+        <div class="card-body">
+          <h5 class="card-title">{{ s.task.title }}</h5>
+          <p class="card-text">
+            <strong>Status:</strong>
+            {% if s.status == 'Approved' %} ✅ Approved
+            {% elif s.status == 'Rejected' %} ❌ Rejected
+            {% elif s.status == 'Pending' %} ⏳ Pending Review
+            {% else %} 📤 Submitted
+            {% endif %}
+          </p>
+          {% if s.score %}
+            <p class="card-text"><strong>Score:</strong> {{ s.score }}</p>
+          {% endif %}
+          {% if s.result %}
+            <pre class="card-text bg-light p-2 rounded" style="max-height: 200px; overflow: auto;">{{ s.result }}</pre>
+          {% endif %}
+          <p class="card-text">
+            <small class="text-muted">Submitted on {{ s.submitted_at|date:"M d, Y H:i" }}</small>
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+{% empty %}
+  <p>You haven’t submitted any tasks yet.</p>
+{% endfor %}
+{% endblock %}

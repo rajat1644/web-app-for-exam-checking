@@ -1,0 +1,39 @@
+{% extends 'admin/base_site.html' %}
+{% block content %}
+<h2>🕵️ Pending Submissions for Review</h2>
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Task</th>
+      <th>User</th>
+      <th>Submitted At</th>
+      <th>Status</th>
+      <th>Action</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for submission in submissions %}
+      <tr>
+        <td>{{ submission.id }}</td>
+        <td>{{ submission.task.title }}</td>
+        <td>{{ submission.user.username }}</td>
+        <td>{{ submission.submitted_at }}</td>
+        <td>
+          {% if submission.status == "Pending" %}⏳ Pending Review
+          {% elif submission.status == "Approved" %}✅ Approved
+          {% elif submission.status == "Rejected" %}❌ Rejected
+          {% else %}📤 Submitted{% endif %}
+        </td>
+        <td>
+          <a href="{% url 'review_detail' submission.id %}" class="btn btn-primary btn-sm">Review</a>
+        </td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="6">No submissions pending review.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
+
+

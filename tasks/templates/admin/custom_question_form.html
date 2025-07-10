@@ -1,0 +1,61 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block content %}
+  <h1>{{ title }}</h1>
+
+  <form method="post" novalidate id="question-form">
+    {% csrf_token %}
+    {{ formset.management_form }}
+
+    <table id="form-table" style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+      <thead style="background-color: #f3f3f3;">
+        <tr>
+          <th style="padding: 10px; border: 1px solid #ccc;">ID</th>
+          <th style="padding: 10px; border: 1px solid #ccc;">Question Text</th>
+          <th style="padding: 10px; border: 1px solid #ccc;">Max Marks</th>
+          <th style="padding: 10px; border: 1px solid #ccc;">Optional Group</th>
+        </tr>
+      </thead>
+      <tbody id="formset-body">
+        {% for form in formset %}
+          <tr class="form-row">
+            {% for field in form.visible_fields %}
+              <td style="padding: 10px; border: 1px solid #ccc;">
+                {{ field.errors }}
+                {{ field }}
+              </td>
+            {% endfor %}
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <button type="button" onclick="addFormRow()" style="margin-bottom: 20px; background-color: green; color: white; padding: 6px 12px; border: none; border-radius: 4px;">➕ Add More Row</button>
+
+    <div style="margin-top: 20px;">
+      <button type="submit" style="padding: 8px 16px; background-color: #007bff; border: none; color: white; cursor: pointer; border-radius: 4px;">
+        💾 Save Questions
+      </button>
+      <a href="../../" style="margin-left: 10px; color: #337ab7; text-decoration: none;">🔙 Back to List</a>
+    </div>
+  </form>
+
+  <script>
+    function addFormRow() {
+      const formIdx = parseInt(document.getElementById('id_form-TOTAL_FORMS').value);
+      const newRow = document.querySelector('.form-row').cloneNode(true);
+
+      newRow.querySelectorAll('input').forEach(function (input) {
+        const name = input.name.replace(/-\d+-/, `-${formIdx}-`);
+        const id = `id_${name}`;
+        input.name = name;
+        input.id = id;
+        input.value = '';
+      });
+
+      document.getElementById('formset-body').appendChild(newRow);
+      document.getElementById('id_form-TOTAL_FORMS').value = formIdx + 1;
+    }
+  </script>
+{% endblock %}

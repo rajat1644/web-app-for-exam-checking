@@ -1,0 +1,51 @@
+{% extends 'admin/base_site.html' %}
+{% load static %}
+
+{% block content %}
+<h2>Review Submission</h2>
+<form method="post">
+  {% csrf_token %}
+
+  <div class="mb-4">
+    <h4>Original Task Image(s):</h4>
+    {% for image in submission.task.images.all %}
+      <img src="{{ image.image.url }}" class="img-fluid mb-2" style="max-width: 100%; border: 1px solid #ccc;">
+    {% empty %}
+      <p>No original images available.</p>
+    {% endfor %}
+  </div>
+
+  <div class="mb-4">
+    <h4>User's Edited Submission:</h4>
+    {% if submission.edited_image %}
+      <img src="{{ submission.edited_image.url }}" class="img-fluid" style="max-width: 100%; border: 1px solid #ccc;">
+    {% else %}
+      <p>No edited image submitted.</p>
+    {% endif %}
+  </div>
+
+  <div class="mb-4">
+    <h4>Result:</h4>
+    {% if submission.result %}
+      <pre class="bg-light p-2 rounded" style="max-height: 300px; overflow-y: auto;">{{ submission.result }}</pre>
+    {% else %}
+      <p>No result available.</p>
+    {% endif %}
+  </div>
+
+  <div class="mb-3">
+    <label for="score" class="form-label">Score</label>
+    <input type="number" name="score" value="{{ submission.score }}" class="form-control" required>
+  </div>
+
+  <div class="mb-3">
+    <label for="comments" class="form-label">Comments</label>
+    <textarea name="comments" class="form-control">{{ submission.comments }}</textarea>
+  </div>
+
+  <div class="mb-3">
+    <button type="submit" name="action" value="approve" class="btn btn-success">Approve</button>
+    <button type="submit" name="action" value="reject" class="btn btn-danger">Reject</button>
+  </div>
+</form>
+{% endblock %}
