@@ -53,7 +53,7 @@ A Django-based web application for assigning tasks involving image annotation. U
 
 \- \*\*Canvas Tools:\*\* Fabric.js
 
-\- \*\*Image Parsing:\*\* Python
+\- \*\*Image Parsing:\*\* Python, Fabric.js JSON
 
 ---
 
