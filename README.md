@@ -1,5 +1,6 @@
 \# Django Task Annotation App
 
+![status](https://img.shields.io/badge/status-in--progress-yellow)
 
 
 A Django-based web application for assigning tasks involving image annotation. Users can draw, label, or tag images using a canvas interface. Admins can review submitted work and approve or reject based on quality.
