@@ -25,17 +25,25 @@
   </div>
 
   <div class="mb-4">
-    <h4>Result:</h4>
-    {% if submission.result %}
-      <pre class="bg-light p-2 rounded" style="max-height: 300px; overflow-y: auto;">{{ submission.result }}</pre>
-    {% else %}
-      <p>No result available.</p>
+    <h4>Score Summary</h4>
+    <ul class="list-group" style="max-width: 400px;">
+      {% for qid, marks in submission.marks_per_question.items %}
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+          Question {{ qid }} <span class="badge bg-primary rounded-pill">{{ marks }}</span>
+        </li>
+      {% endfor %}
+    </ul>
+    <div class="mt-2">
+      <strong>Total Marks:</strong> {{ submission.total_marks }}
+    </div>
+    {% if submission.warnings %}
+      <div class="alert alert-warning mt-2">
+        <strong>Warnings:</strong>
+        <ul class="mb-0">
+          {% for w in submission.warnings %}<li>{{ w }}</li>{% endfor %}
+        </ul>
+      </div>
     {% endif %}
-  </div>
-
-  <div class="mb-3">
-    <label for="score" class="form-label">Score</label>
-    <input type="number" name="score" value="{{ submission.score }}" class="form-control" required>
   </div>
 
   <div class="mb-3">

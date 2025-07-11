@@ -1,0 +1,260 @@
+{% extends 'base.html' %}
+{% load django_bootstrap5 %}
+{% block title %}Edit Submission - {{ submission.task.title }}{% endblock %}
+
+{% block content %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.0/fabric.min.js"></script>
+<h2 class="mb-4">✏️ Edit Submission for {{ submission.task.title }}</h2>
+
+<div class="row gx-4">
+  <!-- LEFT SIDE -->
+  <div class="col-md-7">
+    <div class="mb-3 d-flex flex-wrap gap-2">
+      <button class="btn btn-primary" onclick="enablePencil()">✏️ Pencil</button>
+      <button class="btn btn-info" onclick="addRect()">🟦 Rectangle</button>
+      <button class="btn btn-warning" onclick="addText()">𐥤 Text</button>
+      <button class="btn btn-danger" onclick="clearCanvas()">🗑️ Clear</button>
+      <button class="btn btn-outline-secondary" onclick="enableEraser()">🧽 Eraser</button>
+      <button class="btn btn-secondary" onclick="zoomIn()">➕ Zoom In</button>
+      <button class="btn btn-secondary" onclick="zoomOut()">➖ Zoom Out</button>
+    </div>
+
+    <!-- Number Tools -->
+    <div class="mb-3 d-flex flex-wrap gap-2">
+      <button type="button" class="btn btn-outline-dark" onclick="selectNumberTool('0')">0</button>
+      <button type="button" class="btn btn-outline-dark" onclick="selectNumberTool('0.5')">0.5</button>
+      <button type="button" class="btn btn-outline-dark" onclick="selectNumberTool('1')">1</button>
+      <button type="button" class="btn btn-outline-dark" onclick="selectNumberTool('1.5')">1.5</button>
+      <button type="button" class="btn btn-outline-dark" onclick="selectNumberTool('2')">2</button>
+      <button type="button" class="btn btn-outline-dark" onclick="selectNumberTool('2.5')">2.5</button>
+      <button type="button" class="btn btn-outline-dark" onclick="selectNumberTool('3')">3</button>
+      <button type="button" class="btn btn-outline-dark" onclick="selectNumberTool('3.5')">3.5</button>
+      <button type="button" class="btn btn-outline-dark" onclick="selectNumberTool('4')">4</button>
+      <button type="button" class="btn btn-outline-dark" onclick="selectNumberTool('4.5')">4.5</button>
+      <button type="button" class="btn btn-outline-dark" onclick="selectNumberTool('5')">5</button>
+      <button type="button" class="btn btn-outline-dark" onclick="selectNumberTool('5.5')">5.5</button>
+      <button type="button" class="btn btn-outline-dark" onclick="selectNumberTool('6')">6</button>
+    </div>
+
+    <!-- Canvas -->
+    <div id="canvasWrapper" class="border shadow-sm p-2" style="width: 100%; max-width: 100%; min-height: 400px;">
+      <canvas id="fabricCanvas" style="border:1px solid #ccc; max-width: 100%;"></canvas>
+    </div>
+
+    <!-- Image Thumbnails -->
+    <div class="mb-3 d-flex flex-wrap gap-2 mt-2">
+      {% for img in image_annotations %}
+        <img src="{{ img.image_url }}" class="img-thumbnail" style="width: 80px; cursor: pointer;" onclick="switchImage('{{ img.image_url }}')">
+      {% endfor %}
+    </div>
+
+    <!-- Save Button -->
+    <button class="btn btn-success mt-3" onclick="saveEditedSubmission()">💾 Save Changes</button>
+  </div>
+
+  <!-- RIGHT SIDE: Question Marks List -->
+  <div class="col-md-5">
+    <div class="border shadow-sm p-3" style="height: 601px; overflow-y: auto; margin-top: 54px;">
+      <h5 class="fw-bold mb-3">📘 Question Marks</h5>
+      <ul class="list-group" id="questionList">
+        {% for q in questions %}
+          <li class="list-group-item d-flex justify-content-between align-items-center" id="qbtn-{{ q.id }}" onclick="selectQuestion('{{ q.id }}', '{{ q.max_marks }}')" style="cursor: pointer;">
+            Q{{ q.id }}: {{ q.text }}
+            <span class="badge bg-primary rounded-pill" id="q-marks-{{ q.id }}">0 / {{ q.max_marks }}</span>
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+</div>
+
+<script id="annotationData" type="application/json">{{ annotation_data|safe }}</script>
+<script>
+const canvas = new fabric.Canvas('fabricCanvas');
+let img = null;
+let canvasStates = {};
+let currentScale = 1;
+let selectedQuestion = null;
+let selectedMaxMarks = 0;
+
+const annotationData = JSON.parse(document.getElementById('annotationData').textContent);
+annotationData.forEach(item => {
+  canvasStates[item.image_url] = JSON.parse(item.canvas_data);
+});
+
+function switchImage(url) {
+  if (img && img._src) {
+    canvasStates[img._src] = canvas.toJSON(['question_id', 'marks']);
+  }
+  if (!canvasStates[url]) return;
+  loadImage(url, canvasStates[url]);
+}
+
+function loadImage(url, state) {
+  fabric.Image.fromURL(url, function(loadedImg) {
+    img = loadedImg;
+    img._src = url;
+    const maxWidth = document.getElementById('canvasWrapper').offsetWidth;
+    const maxHeight = 580;
+    const scale = Math.min(maxWidth / img.width, maxHeight / img.height);
+    currentScale = scale;
+
+    canvas.setWidth(img.width * scale);
+    canvas.setHeight(img.height * scale);
+
+    img.set({ scaleX: scale, scaleY: scale, selectable: false, evented: false });
+    canvas.clear();
+    canvas.setBackgroundImage(img, () => {
+      canvas.loadFromJSON(state, () => {
+        canvas.renderAll();
+        updateQuestionMarks();
+      });
+    });
+  });
+}
+
+function selectQuestion(qid, maxMarks) {
+  selectedQuestion = qid;
+  selectedMaxMarks = parseFloat(maxMarks);
+  document.querySelectorAll('#questionList li').forEach(btn => {
+    btn.classList.remove('active');
+  });
+  const active = document.getElementById(`qbtn-${qid}`);
+  if (active) active.classList.add('active');
+  highlightAnnotationsForQuestion(qid);
+}
+
+function enablePencil() {
+  canvas.isDrawingMode = true;
+  canvas.freeDrawingBrush.color = 'red';
+  canvas.freeDrawingBrush.width = 2;
+}
+
+function addRect() {
+  canvas.isDrawingMode = false;
+  canvas.add(new fabric.Rect({ left: 100, top: 100, width: 100, height: 60, fill: 'rgba(0,0,255,0.5)' }));
+}
+
+function addText() {
+  canvas.isDrawingMode = false;
+  canvas.add(new fabric.IText("Enter text", { left: 150, top: 150, fontSize: 20 }));
+}
+
+function clearCanvas() {
+  canvas.clear();
+  canvas.setBackgroundImage(img, canvas.renderAll.bind(canvas));
+}
+
+function enableEraser() {
+  canvas.isDrawingMode = false;
+  canvas.on('mouse:down', function(opt) {
+    if (opt.target) canvas.remove(opt.target);
+  });
+}
+
+function selectNumberTool(num) {
+  if (!selectedQuestion) {
+    alert("⚠️ Please select a question first before marking.");
+    return;
+  }
+  canvas.isDrawingMode = false;
+  canvas.once('mouse:down', function(opt) {
+    const pointer = canvas.getPointer(opt.e);
+    const totalSoFar = totalMarksForQuestionAcrossAllPages(selectedQuestion);
+    const newMark = parseFloat(num);
+    const projectedTotal = totalSoFar + newMark;
+
+    if (projectedTotal > selectedMaxMarks) {
+      alert(`⚠️ Overmarking not allowed. Current total: ${totalSoFar}, trying to add: ${newMark}, which exceeds max: ${selectedMaxMarks}`);
+      return;
+    }
+
+    const text = new fabric.Text(num, {
+      left: pointer.x,
+      top: pointer.y,
+      fontSize: 24,
+      fill: '#007bff',
+      question_id: selectedQuestion,
+      marks: newMark
+    });
+    canvas.add(text);
+    updateQuestionMarks();
+  });
+}
+
+function totalMarksForQuestionAcrossAllPages(qid) {
+  let total = 0;
+  Object.values(canvasStates).forEach(state => {
+    (state.objects || []).forEach(obj => {
+      if (obj.question_id === qid && obj.marks) {
+        total += parseFloat(obj.marks);
+      }
+    });
+  });
+  canvas.getObjects().forEach(obj => {
+    if (obj.question_id === qid && obj.marks) {
+      total += parseFloat(obj.marks);
+    }
+  });
+  return total;
+}
+
+function updateQuestionMarks() {
+  const marksPerQuestion = {};
+  canvas.getObjects().forEach(obj => {
+    if (obj.question_id && obj.marks) {
+      marksPerQuestion[obj.question_id] = (marksPerQuestion[obj.question_id] || 0) + parseFloat(obj.marks);
+    }
+  });
+  Object.entries(marksPerQuestion).forEach(([qid, total]) => {
+    const badge = document.getElementById(`q-marks-${qid}`);
+    if (badge) badge.innerText = `${total} / ${badge.innerText.split('/')[1].trim()}`;
+  });
+}
+
+function highlightAnnotationsForQuestion(qid) {
+  canvas.getObjects().forEach(obj => {
+    if (obj.question_id && obj.marks !== undefined) {
+      if (obj.question_id === qid) {
+        obj.set({ fill: 'blue', stroke: 'blue', shadow: { color: 'blue', blur: 1 } });
+      } else {
+        obj.set({ fill: 'black', stroke: null, shadow: null });
+      }
+    }
+  });
+  canvas.renderAll();
+}
+
+function saveEditedSubmission() {
+  if (img && img._src) {
+    canvasStates[img._src] = canvas.toJSON(['question_id', 'marks']);
+  }
+  const data = Object.entries(canvasStates).map(([url, state]) => ({ image_url: url, canvas_data: JSON.stringify(state) }));
+  fetch(`/save-edited-submission/{{ submission.id }}/`, {
+    method: 'POST',
+    headers: {
+      'X-CSRFToken': '{{ csrf_token }}',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ data })
+  })
+    .then(response => response.json())
+    .then(data => {
+      alert('Saved successfully!');
+      window.location.href = "/completed-tasks/";
+    });
+}
+
+window.onload = function () {
+  const initialUrl = "{{ image_annotations.0.image_url }}";
+  switchImage(initialUrl);
+};
+</script>
+<style>
+  #canvasWrapper { border: 1px solid #ccc; position: relative; overflow: auto; }
+  canvas { display: block; max-width: 100%; }
+  .img-thumbnail { border: 2px solid transparent; transition: border-color 0.3s ease; }
+  .img-thumbnail:hover { border-color: #007bff; }
+  .list-group-item.active { background-color: #0d6efd; color: white; }
+</style>
+{% endblock %}

@@ -6,20 +6,36 @@
 <div class="text-center mt-5">
   <div class="display-1 text-success mb-3">✅</div>
   <h2 class="mb-3">Task Submitted Successfully!</h2>
-  <p class="text-muted mb-4">Thank you for your submission. You can now return to your tasks or view your submission history.</p>
+  <p class="text-muted mb-4">Your changes have been saved and submitted successfully.</p>
 
   <div class="d-grid gap-2 d-sm-flex justify-content-sm-center">
     <a href="{% url 'task_list' %}" class="btn btn-primary btn-lg px-4">Back to Tasks</a>
-    <a href="{% url 'submission_history' %}" class="btn btn-outline-secondary btn-lg px-4">View My History</a>
+    <a href="{% url 'submission_history' %}" class="btn btn-outline-secondary btn-lg px-4">View Submission History</a>
     {% if submission.status == 'Pending' or submission.status == 'Rejected' %}
-      <a href="{% url 'task_detail' submission.task.id %}" class="btn btn-warning btn-lg px-4">Go Back and Edit</a>
+      <a href="{% url 'edit_submission' submission.id %}" class="btn btn-warning btn-lg px-4">Go Back and Edit</a>
     {% endif %}
   </div>
 
   <div class="mt-4">
-    <h5>Total Score: {{ submission.score|default:"N/A" }}</h5>
-    {% if submission.result %}
-      <pre class="bg-light p-3 border rounded mt-2 text-start">{{ submission.result }}</pre>
+    <h5>Total Score: {{ submission.total_marks|default:"N/A" }}</h5>
+    <h6 class="mt-3">Marks Per Question:</h6>
+    <ul class="list-group mx-auto" style="max-width: 400px;">
+      {% for qid, marks in submission.marks_per_question.items %}
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+          Question {{ qid }} <span class="badge bg-primary rounded-pill">{{ marks }}</span>
+        </li>
+      {% endfor %}
+    </ul>
+
+    {% if submission.warnings %}
+      <div class="alert alert-warning text-start mt-3">
+        <strong>Warnings:</strong>
+        <ul class="mb-0">
+          {% for warn in submission.warnings %}
+            <li>{{ warn }}</li>
+          {% endfor %}
+        </ul>
+      </div>
     {% endif %}
   </div>
 </div>

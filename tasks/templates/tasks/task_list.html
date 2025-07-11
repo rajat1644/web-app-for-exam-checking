@@ -11,7 +11,7 @@
 
           <!-- 📷 Full-size background image container -->
           <div style="
-            background-image: url('{{ task.image.url }}');
+            background-image: url('{{ task.images.first.image.url }}');
             background-size: cover;
             background-position: center;
             height: 200px;
@@ -38,6 +38,9 @@
           <!-- 📌 Title and Button -->
           <div class="card-body d-flex flex-column">
             <h5 class="card-title">{{ task.title }}</h5>
+            {% if task.question_paper %}
+              <p class="card-text mb-2"><strong>📘 Paper:</strong> {{ task.question_paper.title }}</p>
+            {% endif %}
             <a href="{% url 'task_detail' task.id %}" class="btn btn-primary mt-auto">Start Task</a>
           </div>
 

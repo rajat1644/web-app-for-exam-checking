@@ -4,15 +4,24 @@
 {% block content %}
 <h2 class="mb-4">✅ Completed Tasks</h2>
 
-{% if completed_tasks %}
+{% if task_data %}
   <div class="row">
-    {% for task in completed_tasks %}
+    {% for item in task_data %}
       <div class="col-md-6 mb-3">
         <div class="card shadow-sm">
           <div class="card-body">
-            <h5 class="card-title">{{ task.title }}</h5>
-            <p class="card-text">{{ task.description|truncatewords:20 }}</p>
-            <p class="card-text"><small class="text-muted">Approved and Completed</small></p>
+            <h5 class="card-title">{{ item.task.title }}</h5>
+            <p class="card-text">{{ item.task.description|truncatewords:20 }}</p>
+            <p class="mb-1"><strong>Status:</strong> {{ item.submission.status }}</p>
+            <p class="mb-1"><strong>Score:</strong> {{ item.submission.total_marks }}</p>
+            <p class="mb-1"><strong>Submitted on:</strong> {{ item.submission.submitted_at|date:"M d, Y H:i" }}</p>
+
+            <div class="mt-3 d-flex gap-2">
+              
+                <a href="{% url 'edit_submission' item.submission.id %}" class="btn btn-warning btn-sm">✏️ Edit</a>
+              
+              <a href="{% url 'view_submission' submission_id=item.submission.id %}" class="btn btn-info btn-sm">👁️ View</a>
+            </div>
           </div>
         </div>
       </div>

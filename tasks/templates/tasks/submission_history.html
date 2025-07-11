@@ -26,11 +26,21 @@
             {% else %} 📤 Submitted
             {% endif %}
           </p>
-          {% if s.score %}
-            <p class="card-text"><strong>Score:</strong> {{ s.score }}</p>
+          {% if s.total_marks %}
+            <p class="card-text"><strong>Score:</strong> {{ s.total_marks }}</p>
           {% endif %}
-          {% if s.result %}
-            <pre class="card-text bg-light p-2 rounded" style="max-height: 200px; overflow: auto;">{{ s.result }}</pre>
+          {% if s.marks_per_question %}
+            <p class="card-text">
+              <strong>Breakdown:</strong>
+              {% for qid, marks in s.marks_per_question.items %}
+                Q{{ qid }}: {{ marks }}&nbsp;&nbsp;
+              {% endfor %}
+            </p>
+          {% endif %}
+          {% if s.warnings %}
+            <div class="alert alert-warning">
+              {% for w in s.warnings %}<div>{{ w }}</div>{% endfor %}
+            </div>
           {% endif %}
           <p class="card-text">
             <small class="text-muted">Submitted on {{ s.submitted_at|date:"M d, Y H:i" }}</small>

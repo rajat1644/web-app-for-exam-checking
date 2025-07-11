@@ -8,19 +8,21 @@
 <h2 class="mb-4">{{ task.title }}</h2>
 
 <div class="row gx-4">
-  <!-- LEFT COLUMN -->
+  <!-- LEFT -->
   <div class="col-md-6">
-    <!-- Tools -->
+    <!-- TOOLS -->
     <div class="mb-3 d-flex flex-wrap gap-2">
-      <button type="button" class="btn btn-primary" onclick="enablePencil()">✏️ Pencil</button>
-      <button type="button" class="btn btn-info" onclick="addRect()">🟦 Rectangle</button>
-      <button type="button" class="btn btn-warning" onclick="addText()">🄤 Text</button>
-      <button type="button" class="btn btn-danger" onclick="clearCanvas()">🗑️ Clear</button>
-      <button type="button" class="btn btn-secondary" onclick="zoomIn()">➕ Zoom In</button>
-      <button type="button" class="btn btn-secondary" onclick="zoomOut()">➖ Zoom Out</button>
+      <button class="btn btn-primary" onclick="enablePencil()">✏️ Pencil</button>
+      <button class="btn btn-info" onclick="addRect()">🟦 Rectangle</button>
+      <button class="btn btn-warning" onclick="addText()">𐥤 Text</button>
+      <button class="btn btn-danger" onclick="clearCanvas()">🗑️ Clear</button>
+      <button class="btn btn-outline-secondary" onclick="enableEraser()">🧽 Eraser</button>
+      <button class="btn btn-secondary" onclick="zoomIn()">➕ Zoom In</button>
+      <button class="btn btn-secondary" onclick="zoomOut()">➖ Zoom Out</button>
     </div>
 
-    <!-- Number Tools -->
+    
+   <!-- Number Tools -->
     <div class="mb-3 d-flex flex-wrap gap-2">
       <button type="button" class="btn btn-outline-dark" onclick="selectNumberTool('0')">0</button>
       <button type="button" class="btn btn-outline-dark" onclick="selectNumberTool('0.5')">0.5</button>
@@ -37,19 +39,19 @@
       <button type="button" class="btn btn-outline-dark" onclick="selectNumberTool('6')">6</button>
     </div>
 
-    <!-- Canvas -->
-    <div id="canvasWrapper" class="border shadow-sm p-2" style="width: 100%; max-width: 100%; min-height: 400px; overflow: auto; transition: height 0.3s ease;">
+    <!-- CANVAS -->
+    <div id="canvasWrapper" class="border shadow-sm p-2" style="width: 100%; max-width: 100%; min-height: 400px;">
       <canvas id="fabricCanvas" style="border:1px solid #ccc; max-width: 100%;"></canvas>
     </div>
 
-    <!-- Thumbnails -->
+    <!-- THUMBNAILS -->
     <div class="mb-3 d-flex flex-wrap gap-2 mt-2">
       {% for img in images %}
         <img src="{{ img.image.url }}" class="img-thumbnail" style="width: 80px; cursor: pointer;" onclick="switchImage('{{ img.image.url }}')">
       {% endfor %}
     </div>
 
-    <!-- Submit Form -->
+    <!-- SUBMIT -->
     <form method="post" id="canvasForm" class="mt-3">
       {% csrf_token %}
       <input type="hidden" name="all_canvas_data" id="allCanvasData">
@@ -57,12 +59,28 @@
     </form>
   </div>
 
-  <!-- RIGHT COLUMN -->
+  <!-- RIGHT -->
   <div class="col-md-6">
     <div class="border shadow-sm p-3" style="height: 601px; overflow-y: auto; margin-top: 54px;">
       <h5 class="fw-bold mb-2">🗒 Instructions</h5>
       <hr class="mb-3">
-      <p style="white-space: pre-wrap;">{{ task.description }}</p>
+      {% if questions %}
+        <h6 class="fw-bold">📘 Question Paper:</h6>
+        <ul class="list-unstyled" id="questionList">
+          {% for q in questions %}
+            <li class="mb-2">
+              <button type="button" id="qbtn-{{ q.id }}" class="btn btn-outline-primary w-100 text-start mb-1" onclick="selectQuestion('{{ q.id }}', '{{ q.max_marks }}')">
+                <strong>Q{{ q.id }}:</strong> {{ q.text }} ({{ q.max_marks }} marks)
+              </button>
+              {% if q.optional_group %}
+                <em class="text-muted ms-3">[Optional Group: {{ q.optional_group }}]</em>
+              {% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="text-danger">No question paper attached.</p>
+      {% endif %}
     </div>
   </div>
 </div>
@@ -71,37 +89,131 @@
 const canvas = new fabric.Canvas('fabricCanvas');
 let img;
 let currentScale = 1;
-let originalScale = 1;
-const canvasStates = {};
+let canvasStates = {};
+let selectedQuestion = null;
+let selectedMaxMarks = 0;
+let selectedNumber = null;
+let numberClickHandler = null;
+let eraserMode = false;
 
-function loadImage(url, callback = null) {
-  fabric.Image.fromURL(url, function(loadedImg) {
-    img = loadedImg;
-    img._src = url;
-    const maxWidth = document.getElementById('canvasWrapper').offsetWidth;
-    const maxHeight = 580;
-    const scale = Math.min(maxWidth / img.width, maxHeight / img.height);
-    currentScale = originalScale = scale;
-    const canvasWidth = img.width * scale;
-    const canvasHeight = img.height * scale;
-    canvas.setWidth(canvasWidth);
-    canvas.setHeight(canvasHeight);
-    document.getElementById('canvasWrapper').style.height = `${canvasHeight + 20}px`;
-    img.set({ scaleX: scale, scaleY: scale, selectable: false, evented: false });
-    canvas.clear();
-    canvas.setBackgroundImage(img, () => {
-      canvas.renderAll();
-      if (canvasStates[url]) {
-        canvas.loadFromJSON(canvasStates[url], canvas.renderAll.bind(canvas));
+function selectQuestion(qid, maxMarks) {
+  selectedQuestion = qid;
+  selectedMaxMarks = parseFloat(maxMarks);
+  document.querySelectorAll('#questionList button').forEach(btn => {
+    btn.classList.remove('btn-primary');
+    btn.classList.add('btn-outline-primary');
+    btn.style.color = '';
+    btn.style.backgroundColor = '';
+  });
+  const active = document.getElementById(`qbtn-${qid}`);
+  if (active) {
+    active.classList.remove('btn-outline-primary');
+    active.classList.add('btn-primary');
+    active.style.color = 'white';
+    active.style.backgroundColor = '#0d6efd';
+  }
+}
+
+function enablePencil() {
+  eraserMode = false;
+  canvas.isDrawingMode = true;
+  canvas.freeDrawingBrush.color = 'red';
+  canvas.freeDrawingBrush.width = 2;
+}
+
+function addRect() {
+  eraserMode = false;
+  canvas.isDrawingMode = false;
+  canvas.add(new fabric.Rect({ left: 100, top: 100, width: 100, height: 60, fill: 'rgba(0,0,255,0.5)' }));
+}
+
+function addText() {
+  eraserMode = false;
+  canvas.isDrawingMode = false;
+  canvas.add(new fabric.IText("Enter text", { left: 150, top: 150, fontSize: 20 }));
+}
+
+function clearCanvas() {
+  const bg = canvas.backgroundImage;
+  canvas.getObjects().forEach(obj => {
+    if (obj !== bg) canvas.remove(obj);
+  });
+  canvas.clear();
+  canvas.setBackgroundImage(bg, canvas.renderAll.bind(canvas));
+  if (img && img._src) canvasStates[img._src] = canvas.toJSON(['selectable', 'evented', 'question_id', 'marks']);
+}
+
+function enableEraser() {
+  eraserMode = true;
+  canvas.isDrawingMode = false;
+  canvas.off('mouse:down');
+  canvas.on('mouse:down', function(opt) {
+    const target = opt.target;
+    if (target) canvas.remove(target);
+  });
+}
+
+function totalMarksForQuestionAcrossAllPages(qid) {
+  let total = 0;
+  Object.values(canvasStates).forEach(state => {
+    (state.objects || []).forEach(obj => {
+      if (obj.question_id === qid && obj.marks) {
+        total += parseFloat(obj.marks);
       }
-      if (callback) callback();
     });
   });
+  return total;
+}
+
+function selectNumberTool(num) {
+  if (!selectedQuestion) {
+    alert("⚠️ Please select a question first before marking.");
+    return;
+  }
+
+  selectedNumber = num;
+  eraserMode = false;
+  canvas.isDrawingMode = false;
+  canvas.off('mouse:down', numberClickHandler);
+  numberClickHandler = function (opt) {
+    const pointer = canvas.getPointer(opt.e);
+
+    if (img && img._src) {
+      canvasStates[img._src] = canvas.toJSON(['selectable', 'evented', 'question_id', 'marks']);
+    }
+
+    const totalSoFar = totalMarksForQuestionAcrossAllPages(selectedQuestion);
+    const newMark = parseFloat(selectedNumber);
+    const projectedTotal = totalSoFar + newMark;
+
+    if (projectedTotal > selectedMaxMarks) {
+      const proceed = confirm(`⚠️ You are overmarking! Total marks for this question would be ${projectedTotal}, exceeding ${selectedMaxMarks}.\n\nThis mark will NOT be saved.`);
+      if (!proceed) {
+        selectedNumber = null;
+        canvas.off('mouse:down', numberClickHandler);
+        return;
+      }
+      return;
+    }
+
+    const text = new fabric.Text(selectedNumber, {
+      left: pointer.x,
+      top: pointer.y,
+      fontSize: 24,
+      fill: 'black',
+      question_id: selectedQuestion,
+      marks: newMark
+    });
+    canvas.add(text);
+    selectedNumber = null;
+    canvas.off('mouse:down', numberClickHandler);
+  };
+  canvas.on('mouse:down', numberClickHandler);
 }
 
 function switchImage(url) {
   if (img && img._src) {
-    canvasStates[img._src] = canvas.toJSON(['selectable', 'evented']);
+    canvasStates[img._src] = canvas.toJSON(['selectable', 'evented', 'question_id', 'marks']);
   }
   loadImage(url);
 }
@@ -128,81 +240,60 @@ function updateZoom() {
   canvas.setBackgroundImage(img, canvas.renderAll.bind(canvas));
 }
 
-function enablePencil() {
-  canvas.isDrawingMode = true;
-  canvas.freeDrawingBrush.color = 'red';
-  canvas.freeDrawingBrush.width = 2;
+function loadImage(url, callback = null) {
+  fabric.Image.fromURL(url, function(loadedImg) {
+    img = loadedImg;
+    img._src = url;
+    const maxWidth = document.getElementById('canvasWrapper').offsetWidth;
+    const maxHeight = 580;
+    const scale = Math.min(maxWidth / img.width, maxHeight / img.height);
+    currentScale = scale;
+    canvas.setWidth(img.width * scale);
+    canvas.setHeight(img.height * scale);
+    img.set({ scaleX: scale, scaleY: scale, selectable: false, evented: false });
+    canvas.clear();
+    canvas.setBackgroundImage(img, () => {
+      canvas.renderAll();
+      if (canvasStates[url]) {
+        canvas.loadFromJSON(canvasStates[url], canvas.renderAll.bind(canvas));
+      }
+      if (callback) callback();
+    });
+  });
 }
 
-function addRect() {
-  canvas.isDrawingMode = false;
-  canvas.add(new fabric.Rect({ left: 100, top: 100, width: 100, height: 60, fill: 'rgba(0,0,255,0.5)' }));
-}
-
-function addText() {
-  canvas.isDrawingMode = false;
-  canvas.add(new fabric.IText("Enter text", { left: 150, top: 150, fontSize: 20 }));
-}
-
-function clearCanvas() {
-  const bg = canvas.backgroundImage;
-  canvas.clear();
-  canvas.setBackgroundImage(bg, canvas.renderAll.bind(canvas));
-}
-
-let selectedNumber = null;
-let numberClickHandler = null;
-
-function selectNumberTool(num) {
-  selectedNumber = num;
-  canvas.isDrawingMode = false;
-
-  if (numberClickHandler) {
-    canvas.off('mouse:down', numberClickHandler);
+document.getElementById("canvasForm").addEventListener("submit", function(e) {
+  if (img && img._src) {
+    canvasStates[img._src] = canvas.toJSON(['selectable', 'evented', 'question_id', 'marks']);
   }
 
-  numberClickHandler = function (opt) {
-    const pointer = canvas.getPointer(opt.e);
-    const text = new fabric.Text(selectedNumber, {
-      left: pointer.x,
-      top: pointer.y,
-      fontSize: 24,
-      fill: 'black'
+  const allData = [];
+  const urls = Object.keys(canvasStates);
+  let loaded = 0;
+
+  urls.forEach((url) => {
+    const dummyCanvas = new fabric.StaticCanvas(null);
+    dummyCanvas.loadFromJSON(canvasStates[url], () => {
+      const imageData = dummyCanvas.toDataURL({ format: 'png', withoutBackground: true });
+      const canvasJson = JSON.stringify(canvasStates[url]);
+      allData.push({ image_url: url, image_data: imageData, canvas_data: canvasJson });
+      loaded++;
+      if (loaded === urls.length) {
+        document.getElementById("allCanvasData").value = JSON.stringify(allData);
+        document.getElementById("canvasForm").submit();
+      }
     });
-    canvas.add(text);
-    selectedNumber = null;
-    canvas.off('mouse:down', numberClickHandler);
-  };
-  canvas.on('mouse:down', numberClickHandler);
-}
-
-// Submit handler
-  document.getElementById("canvasForm").addEventListener("submit", function(e) {
-    if (img && img._src) {
-      canvasStates[img._src] = canvas.toJSON(['selectable', 'evented']);
-    }
-
-    const allData = [];
-    Object.keys(canvasStates).forEach((url, idx) => {
-      const dummyCanvas = new fabric.StaticCanvas(null);
-      dummyCanvas.loadFromJSON(canvasStates[url], () => {
-        const imageData = dummyCanvas.toDataURL({ format: 'png', withoutBackground: true });
-        const canvasJson = JSON.stringify(canvasStates[url]);
-        allData.push({ image_url: url, image_data: imageData, canvas_data: canvasJson });
-        if (allData.length === Object.keys(canvasStates).length) {
-          document.getElementById("allCanvasData").value = JSON.stringify(allData);
-          document.getElementById("canvasForm").submit();
-        }
-      });
-    });
-
-    e.preventDefault();
   });
+
+  e.preventDefault();
+});
 
 window.onload = function () {
   const initialUrl = "{{ images.0.image.url }}";
   loadImage(initialUrl, () => {
-    canvasStates[initialUrl] = canvas.toJSON(['selectable', 'evented']);
+    if (!canvasStates[initialUrl]) {
+      canvasStates[initialUrl] = canvas.toJSON(['selectable', 'evented']);
+    }
   });
 };
 </script>

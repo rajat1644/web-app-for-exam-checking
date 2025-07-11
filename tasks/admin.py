@@ -1,5 +1,3 @@
-# ✅ Cleaned and Unified Django Admin for QuestionPaper and Other Models
-
 from django.contrib import admin
 from django import forms
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
@@ -16,10 +14,8 @@ from .models import (
     ReviewSubmissions, SubmittedSubmissions, QuestionPaper, QuestionInlineForm
 )
 
-# ✅ Question FormSet (initial 3 rows)
 QuestionInlineFormSet = formset_factory(QuestionInlineForm, extra=3)
 
-# ✅ Custom Admin for QuestionPaper with FormSet (Dynamic Table UI)
 class QuestionPaperAdmin(admin.ModelAdmin):
     change_form_template = 'admin/custom_question_form.html'
 
@@ -27,12 +23,13 @@ class QuestionPaperAdmin(admin.ModelAdmin):
         urls = super().get_urls()
         custom_urls = [
             path('<int:object_id>/change/', self.admin_site.admin_view(self.change_view_custom), name='tasks_questionpaper_change'),
+            path('add/', self.admin_site.admin_view(self.add_view_custom), name='tasks_questionpaper_add'),
         ]
         return custom_urls + urls
 
-    def change_view_custom(self, request, object_id):
-        instance = QuestionPaper.objects.get(pk=object_id)
+    def add_view_custom(self, request):
         if request.method == 'POST':
+            title = request.POST.get("title", "")
             formset = QuestionInlineFormSet(request.POST)
             if formset.is_valid():
                 questions = []
@@ -44,6 +41,35 @@ class QuestionPaperAdmin(admin.ModelAdmin):
                             "max_marks": form.cleaned_data['max_marks'],
                             "optional_group": form.cleaned_data['optional_group']
                         })
+                instance = QuestionPaper.objects.create(title=title, questions=questions)
+                return redirect(f'/admin/tasks/questionpaper/{instance.pk}/change/')
+        else:
+            formset = QuestionInlineFormSet(initial=[{} for _ in range(3)])
+
+        context = {
+            'opts': self.model._meta,
+            'formset': formset,
+            'title': 'Add QuestionPaper',
+            'original': None,
+        }
+        return render(request, 'admin/custom_question_form.html', context)
+
+    def change_view_custom(self, request, object_id):
+        instance = QuestionPaper.objects.get(pk=object_id)
+        if request.method == 'POST':
+            title = request.POST.get("title", "")
+            formset = QuestionInlineFormSet(request.POST)
+            if formset.is_valid():
+                questions = []
+                for form in formset:
+                    if form.cleaned_data.get('text'):
+                        questions.append({
+                            "id": form.cleaned_data['qid'],
+                            "text": form.cleaned_data['text'],
+                            "max_marks": form.cleaned_data['max_marks'],
+                            "optional_group": form.cleaned_data['optional_group']
+                        })
+                instance.title = title
                 instance.questions = questions
                 instance.save()
                 return redirect(f'/admin/tasks/questionpaper/{object_id}/change/')
@@ -66,12 +92,12 @@ class QuestionPaperAdmin(admin.ModelAdmin):
             'original': instance,
             'formset': formset,
             'title': f'Edit QuestionPaper: {instance.title}',
+            'title_value': instance.title
         }
         return render(request, 'admin/custom_question_form.html', context)
 
 admin.site.register(QuestionPaper, QuestionPaperAdmin)
 
-# ✅ Submitted Dashboard Proxy
 class SubmittedSubmissionsAdmin(admin.ModelAdmin):
     def changelist_view(self, request, extra_context=None):
         return HttpResponseRedirect(reverse('submitted_dashboard'))
@@ -82,7 +108,6 @@ class SubmittedSubmissionsAdmin(admin.ModelAdmin):
 
 admin.site.register(SubmittedSubmissions, SubmittedSubmissionsAdmin)
 
-# ✅ Inline for Task Images
 class TaskImageInline(admin.TabularInline):
     model = TaskImage
     extra = 1
@@ -93,20 +118,17 @@ class TaskImageInline(admin.TabularInline):
             return format_html('<img src="{}" width="100" />', obj.image.url)
         return ""
 
-# ✅ Task Admin
 @admin.register(Task)
 class TaskAdmin(admin.ModelAdmin):
     list_display = ['title', 'assigned_to', 'is_completed']
     inlines = [TaskImageInline]
 
-# ✅ Submission Admin
 @admin.register(Submission)
 class SubmissionAdmin(admin.ModelAdmin):
     list_display = ['user', 'task', 'submitted_at', 'result', 'status']
     readonly_fields = ['submitted_at']
     list_filter = ['status', 'submitted_at']
 
-# ✅ Review Dashboard Proxy
 @admin.register(ReviewSubmissions)
 class ReviewSubmissionsAdmin(admin.ModelAdmin):
     def changelist_view(self, request, extra_context=None):
@@ -116,12 +138,10 @@ class ReviewSubmissionsAdmin(admin.ModelAdmin):
     def has_change_permission(self, request, obj=None): return False
     def has_delete_permission(self, request): return False
 
-# ✅ Staff User Proxy
 @admin.register(StaffUser)
 class StaffUserAdmin(BaseUserAdmin):
     def get_queryset(self, request):
         return super().get_queryset(request).filter(is_staff=True)
 
-# ✅ Override Default User Registration
 admin.site.unregister(User)
 admin.site.register(User, BaseUserAdmin)

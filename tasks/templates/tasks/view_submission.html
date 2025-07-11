@@ -1,0 +1,141 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}View Submission{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">👁️ View Submission for {{ submission.task.title }}</h2>
+
+<div class="row">
+  <!-- LEFT CANVAS SIDE -->
+  <div class="col-md-7">
+    <div id="canvasWrapper" class="border shadow-sm p-2" style="width: 100%; max-width: 100%; min-height: 400px;">
+      <canvas id="fabricCanvas" style="border:1px solid #ccc; max-width: 100%;"></canvas>
+    </div>
+
+    <div class="mb-3 d-flex flex-wrap gap-2 mt-2">
+      {% for img in image_annotations %}
+        <img src="{{ img.image_url }}" class="img-thumbnail" style="width: 80px; cursor: pointer;" onclick="switchImage('{{ img.image_url }}')">
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- RIGHT QUESTIONS SIDE -->
+  <div class="col-md-5">
+    <div class="border shadow-sm p-3" style="height: 601px; overflow-y: auto;">
+      <h5 class="fw-bold mb-3">📘 Question Marks</h5>
+      <ul class="list-group">
+        {% for q in questions %}
+          <li class="list-group-item d-flex justify-content-between align-items-center" onclick="highlightAnnotationsForQuestion('{{ q.id }}')" style="cursor: pointer;">
+            Q{{ q.id }}: {{ q.text }}
+            <span class="badge bg-primary rounded-pill" id="q-marks-{{ q.id }}">0 / {{ q.max_marks }}</span>
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+</div>
+
+<script id="annotationData" type="application/json">
+  {{ annotation_data|safe }}
+</script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.0/fabric.min.js"></script>
+<script>
+const canvas = new fabric.Canvas('fabricCanvas', { selection: false });
+canvas.isDrawingMode = false;
+let img = null;
+let canvasStates = {};
+let currentScale = 1;
+
+const annotationData = JSON.parse(document.getElementById('annotationData').textContent);
+annotationData.forEach(item => {
+  canvasStates[item.image_url] = JSON.parse(item.canvas_data);
+});
+
+function switchImage(url) {
+  if (!canvasStates[url]) return;
+  loadImage(url, canvasStates[url]);
+}
+
+function loadImage(url, state) {
+  fabric.Image.fromURL(url, function(loadedImg) {
+    img = loadedImg;
+    const maxWidth = document.getElementById('canvasWrapper').offsetWidth;
+    const maxHeight = 580;
+    const scale = Math.min(maxWidth / img.width, maxHeight / img.height);
+    currentScale = scale;
+
+    canvas.setWidth(img.width * scale);
+    canvas.setHeight(img.height * scale);
+
+    img.set({ scaleX: scale, scaleY: scale, selectable: false, evented: false });
+    canvas.clear();
+    canvas.setBackgroundImage(img, () => {
+      canvas.loadFromJSON(state, () => {
+        canvas.getObjects().forEach(obj => {
+          obj.selectable = false;
+          obj.evented = false;
+        });
+        canvas.renderAll();
+        updateQuestionMarks();
+      });
+    });
+  });
+}
+
+function updateQuestionMarks() {
+  const marksPerQuestion = {};
+  canvas.getObjects().forEach(obj => {
+    if (obj.question_id && obj.marks) {
+      const qid = obj.question_id;
+      marksPerQuestion[qid] = (marksPerQuestion[qid] || 0) + parseFloat(obj.marks);
+    }
+  });
+
+  Object.entries(marksPerQuestion).forEach(([qid, total]) => {
+    const badge = document.getElementById(`q-marks-${qid}`);
+    if (badge) badge.innerText = `${total} / ${badge.innerText.split('/')[1].trim()}`;
+  });
+}
+
+function highlightAnnotationsForQuestion(qid) {
+  canvas.getObjects().forEach(obj => {
+    if (obj.question_id && obj.marks !== undefined) {
+      if (obj.question_id === qid) {
+        obj.set({
+          fill: 'blue',
+          stroke: 'blue',
+          strokeWidth: 1,
+          shadow: {
+            color: 'blue',
+            blur: 1,
+            offsetX: 0,
+            offsetY: 0
+          }
+        });
+      } else {
+        obj.set({
+          fill: 'black',
+          stroke: null,
+          strokeWidth: 0,
+          shadow: null
+        });
+      }
+    }
+  });
+  canvas.renderAll();
+}
+
+window.onload = function () {
+  const initialUrl = "{{ image_annotations.0.image_url }}";
+  switchImage(initialUrl);
+};
+</script>
+
+<style>
+  #canvasWrapper { border: 1px solid #ccc; position: relative; overflow: auto; }
+  canvas { display: block; max-width: 100%; }
+  .img-thumbnail { border: 2px solid transparent; transition: border-color 0.3s ease; }
+  .img-thumbnail:hover { border-color: #007bff; }
+</style>
+{% endblock %}
