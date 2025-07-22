@@ -115,6 +115,7 @@ class TaskImageInline(admin.TabularInline):
 
     def image_preview(self, obj):
         if obj.image:
+            print("IMAGE URL:", obj.image.url)  # debug print
             return format_html('<img src="{}" width="100" />', obj.image.url)
         return ""
 

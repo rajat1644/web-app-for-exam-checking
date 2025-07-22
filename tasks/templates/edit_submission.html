@@ -19,22 +19,25 @@
       <button class="btn btn-secondary" onclick="zoomOut()">➖ Zoom Out</button>
     </div>
 
+
     <!-- Number Tools -->
-    <div class="mb-3 d-flex flex-wrap gap-2">
-      <button type="button" class="btn btn-outline-dark" onclick="selectNumberTool('0')">0</button>
-      <button type="button" class="btn btn-outline-dark" onclick="selectNumberTool('0.5')">0.5</button>
-      <button type="button" class="btn btn-outline-dark" onclick="selectNumberTool('1')">1</button>
-      <button type="button" class="btn btn-outline-dark" onclick="selectNumberTool('1.5')">1.5</button>
-      <button type="button" class="btn btn-outline-dark" onclick="selectNumberTool('2')">2</button>
-      <button type="button" class="btn btn-outline-dark" onclick="selectNumberTool('2.5')">2.5</button>
-      <button type="button" class="btn btn-outline-dark" onclick="selectNumberTool('3')">3</button>
-      <button type="button" class="btn btn-outline-dark" onclick="selectNumberTool('3.5')">3.5</button>
-      <button type="button" class="btn btn-outline-dark" onclick="selectNumberTool('4')">4</button>
-      <button type="button" class="btn btn-outline-dark" onclick="selectNumberTool('4.5')">4.5</button>
-      <button type="button" class="btn btn-outline-dark" onclick="selectNumberTool('5')">5</button>
-      <button type="button" class="btn btn-outline-dark" onclick="selectNumberTool('5.5')">5.5</button>
-      <button type="button" class="btn btn-outline-dark" onclick="selectNumberTool('6')">6</button>
-    </div>
+<div class="mb-3 d-flex flex-wrap gap-2">
+  <button type="button" class="btn btn-danger" onclick="selectNumberTool('0')">0</button>
+<button type="button" class="btn btn-danger" onclick="selectNumberTool('0.5')">0.5</button>
+<button type="button" class="btn btn-danger" onclick="selectNumberTool('1')">1</button>
+<button type="button" class="btn btn-danger" onclick="selectNumberTool('1.5')">1.5</button>
+<button type="button" class="btn btn-danger" onclick="selectNumberTool('2')">2</button>
+<button type="button" class="btn btn-danger" onclick="selectNumberTool('2.5')">2.5</button>
+<button type="button" class="btn btn-danger" onclick="selectNumberTool('3')">3</button>
+<button type="button" class="btn btn-danger" onclick="selectNumberTool('3.5')">3.5</button>
+<button type="button" class="btn btn-danger" onclick="selectNumberTool('4')">4</button>
+<button type="button" class="btn btn-danger" onclick="selectNumberTool('4.5')">4.5</button>
+<button type="button" class="btn btn-danger" onclick="selectNumberTool('5')">5</button>
+<button type="button" class="btn btn-danger" onclick="selectNumberTool('5.5')">5.5</button>
+<button type="button" class="btn btn-danger" onclick="selectNumberTool('6')">6</button>
+
+</div>
+
 
     <!-- Canvas -->
     <div id="canvasWrapper" class="border shadow-sm p-2" style="width: 100%; max-width: 100%; min-height: 400px;">
@@ -49,7 +52,7 @@
     </div>
 
     <!-- Save Button -->
-    <button class="btn btn-success mt-3" onclick="saveEditedSubmission()">💾 Save Changes</button>
+    <button class="btn btn-success mt-3" onclick="submitEditedData()">💾 Save Changes</button>
   </div>
 
   <!-- RIGHT SIDE: Question Marks List -->
@@ -116,9 +119,7 @@ function loadImage(url, state) {
 function selectQuestion(qid, maxMarks) {
   selectedQuestion = qid;
   selectedMaxMarks = parseFloat(maxMarks);
-  document.querySelectorAll('#questionList li').forEach(btn => {
-    btn.classList.remove('active');
-  });
+  document.querySelectorAll('#questionList li').forEach(btn => btn.classList.remove('active'));
   const active = document.getElementById(`qbtn-${qid}`);
   if (active) active.classList.add('active');
   highlightAnnotationsForQuestion(qid);
@@ -149,6 +150,7 @@ function enableEraser() {
   canvas.isDrawingMode = false;
   canvas.on('mouse:down', function(opt) {
     if (opt.target) canvas.remove(opt.target);
+    updateQuestionMarks();
   });
 }
 
@@ -224,32 +226,51 @@ function highlightAnnotationsForQuestion(qid) {
   });
   canvas.renderAll();
 }
+window.submitEditedData = function() {
+    if (img && img._src) {
+        canvasStates[img._src] = canvas.toJSON(['question_id', 'marks']);
+    }
 
-function saveEditedSubmission() {
-  if (img && img._src) {
-    canvasStates[img._src] = canvas.toJSON(['question_id', 'marks']);
-  }
-  const data = Object.entries(canvasStates).map(([url, state]) => ({ image_url: url, canvas_data: JSON.stringify(state) }));
-  fetch(`/save-edited-submission/{{ submission.id }}/`, {
-    method: 'POST',
-    headers: {
-      'X-CSRFToken': '{{ csrf_token }}',
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({ data })
-  })
+    const dataPayload = Object.entries(canvasStates).map(([url, state]) => ({
+        image_url: url,
+        canvas_data: JSON.stringify(state)
+    }));
+
+    fetch(`/save-edited-submission/{{ submission.id }}/`, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            data: dataPayload
+        })
+    })
     .then(response => response.json())
-    .then(data => {
-      alert('Saved successfully!');
-      window.location.href = "/completed-tasks/";
+    .then(result => {
+        if (result.status === 'success') {
+            window.location.href = '/submit-success/{{ submission.id }}/';
+        } else {
+            alert('Failed to save edits.');
+        }
+    })
+    .catch(error => {
+        console.error('Error saving submission:', error);
+        alert('An error occurred while saving edits.');
     });
 }
+
+
+
+
 
 window.onload = function () {
   const initialUrl = "{{ image_annotations.0.image_url }}";
   switchImage(initialUrl);
 };
 </script>
+
 <style>
   #canvasWrapper { border: 1px solid #ccc; position: relative; overflow: auto; }
   canvas { display: block; max-width: 100%; }
@@ -258,3 +279,6 @@ window.onload = function () {
   .list-group-item.active { background-color: #0d6efd; color: white; }
 </style>
 {% endblock %}
+
+
+

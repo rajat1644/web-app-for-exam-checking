@@ -21,6 +21,16 @@ from .models import Task, Submission, TaskImage, QuestionPaper
 from .json import analyze_multiple_canvas_jsons
 from .utils import validate_submission
 
+@login_required
+def submit_success(request, submission_id):
+    submission = get_object_or_404(Submission, id=submission_id, user=request.user)
+    questions = submission.task.question_paper.questions if submission.task.question_paper else []
+
+    return render(request, 'submit_success.html', {
+        'submission': submission,
+        'questions': questions
+    })
+
 # ✅ Redirect after login
 @login_required
 def role_based_redirect_view(request):
@@ -319,15 +329,47 @@ def edit_submission(request, submission_id):
         'image_annotations': image_annotations,
         'annotation_data': json.dumps(image_annotations),
     })
-
+@login_required
+def submit_success(request, submission_id):
+    submission = get_object_or_404(Submission, id=submission_id, user=request.user)
+    return render(request, 'submit_success.html', {'submission': submission})
 
 @csrf_exempt
 @login_required
 def save_edited_submission(request, submission_id):
     if request.method == 'POST':
+        print(f"Request Method: {request.method}")
+        print(f"Request Body: {request.body}")
         submission = get_object_or_404(Submission, id=submission_id, user=request.user)
         data = json.loads(request.body)
-        submission.canvas_json = data.get('canvas_json', '')
-        submission.marks_json = data.get('marks_json', '{}')
+
+        data_list = data.get('data', [])  # list of {image_url, canvas_data}
+        submission.canvas_json = json.dumps(data_list)
+
+        question_marks = {}
+
+        try:
+            for item in data_list:
+                canvas_data = item.get('canvas_data', '{}')
+                canvas_dict = json.loads(canvas_data)
+
+                # Update question marks
+                for obj in canvas_dict.get("objects", []):
+                    qid = str(obj.get("question_id"))
+                    mark = float(obj.get("marks", 0))
+                    if qid:
+                        question_marks[qid] = question_marks.get(qid, 0) + mark
+
+                # ✅ Validate each canvas_dict individually
+                validate_submission(canvas_dict, submission.task.question_paper)
+
+        except Exception as e:
+            print("Error parsing canvas data:", e)
+
+        submission.marks_per_question = question_marks
+        submission.total_marks = sum(question_marks.values()) if question_marks else 0
         submission.save()
+
         return JsonResponse({'status': 'success'})
+
+    return JsonResponse({'error': 'Invalid request method'}, status=400)

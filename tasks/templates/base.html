@@ -6,44 +6,77 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>{% block title %}My App{% endblock %}</title>
   {% bootstrap_css %}
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      margin: 0;
+      background: #0d1b2a;
+      color: #fff;
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    .navbar {
+      background-color: #1b263b;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+    .navbar-brand, .nav-link, .clock {
+      color: #fff !important;
+      transition: color 0.3s, transform 0.3s;
+    }
+    .nav-link:hover, .navbar-brand:hover {
+      color: #66fcf1 !important;
+      transform: scale(1.05);
+    }
+    .container {
+      background: rgba(255,255,255,0.05);
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      padding: 20px;
+      backdrop-filter: blur(10px);
+    }
+    #particles-js {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: -1;
+    }
+    .clock {
+      font-weight: 400;
+      margin-left: 15px;
+      font-size: 0.95rem;
+    }
+  </style>
 </head>
 <body>
 
-<nav class="navbar navbar-expand-lg navbar-light bg-light mb-4">
+<div id="particles-js"></div>
+
+<nav class="navbar navbar-expand-lg navbar-dark mb-4">
   <div class="container-fluid">
     <a class="navbar-brand" href="{% url 'task_list' %}">TaskApp</a>
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
             data-bs-target="#mainNav" aria-label="Toggle navigation">
       <span class="navbar-toggler-icon"></span>
     </button>
-    <div class="collapse navbar-collapse justify-content-end" id="mainNav">
+    <div class="collapse navbar-collapse justify-content-end align-items-center" id="mainNav">
       <ul class="navbar-nav">
         {% if user.is_authenticated %}
-          <li class="nav-item">
-            <a class="nav-link" href="{% url 'dashboard' %}">Dashboard</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="{% url 'profile' %}">Profile</a>  {# link for profile #}
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="{% url 'submission_history' %}">My History</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="{% url 'completed_tasks' %}">Completed Tasks</a>
-          </li>
-
-          <li class="nav-item">
-            <a class="nav-link" href="#" onclick="document.getElementById('logout-form').submit()">Logout</a>
-          </li>
+          <li class="nav-item"><a class="nav-link" href="{% url 'dashboard' %}">Dashboard</a></li>
+          <li class="nav-item"><a class="nav-link" href="{% url 'profile' %}">Profile</a></li>
+          <li class="nav-item"><a class="nav-link" href="{% url 'submission_history' %}">My History</a></li>
+          <li class="nav-item"><a class="nav-link" href="{% url 'completed_tasks' %}">Completed Tasks</a></li>
+          <li class="nav-item"><a class="nav-link" href="#" onclick="document.getElementById('logout-form').submit()">Logout</a></li>
           <form id="logout-form" method="post" action="{% url 'logout' %}" style="display:none;">
             {% csrf_token %}
           </form>
         {% else %}
-          <li class="nav-item">
-            <a class="nav-link" href="{% url 'login' %}?next={{ request.path }}">Login</a>
-          </li>
+          <li class="nav-item"><a class="nav-link" href="{% url 'login' %}?next={{ request.path }}">Login</a></li>
         {% endif %}
       </ul>
+      <div class="clock" id="clock"></div>
     </div>
   </div>
 </nav>
@@ -54,5 +87,29 @@
 </div>
 
 {% bootstrap_javascript %}
+<script>
+  function updateClock() {
+    const clock = document.getElementById('clock');
+    const now = new Date();
+    clock.textContent = now.toLocaleTimeString();
+  }
+  setInterval(updateClock, 1000);
+  updateClock();
+</script>
+
+<!-- particles.js CDN -->
+<script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+<script>
+particlesJS('particles-js', {
+  "particles": {
+    "number": {"value": 60},
+    "size": {"value": 3},
+    "color": {"value": "#66fcf1"},
+    "line_linked": {"enable": true, "color": "#66fcf1"},
+    "move": {"speed": 2}
+  }
+});
+</script>
+
 </body>
 </html>
